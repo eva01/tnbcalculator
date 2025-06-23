@@ -30,9 +30,14 @@
         }
         .breakdown-grid {
             display: grid;
-            grid-template-columns: 3fr 2fr 2fr 2fr;
-            gap: 0.5rem 1rem;
+            grid-template-columns: 3fr 2fr;
+            gap: 0.25rem 1rem;
             align-items: center;
+        }
+        @media (min-width: 640px) {
+            .breakdown-grid {
+                grid-template-columns: 3fr 2fr 2fr 2fr;
+            }
         }
         .breakdown-header {
             font-weight: 600;
@@ -43,11 +48,13 @@
         .breakdown-label {
             text-align: left;
             color: #4A5568;
+            padding: 0.25rem 0.5rem;
         }
         .breakdown-value {
             text-align: right;
             font-weight: 600;
             color: #2D3748;
+            padding: 0.25rem 0.5rem;
         }
         .breakdown-total {
              grid-column: 1 / -1;
@@ -188,7 +195,7 @@
                 return { nonST: nonSTCharge, st: stCharge, total: nonSTCharge + stCharge };
             };
 
-            const calculateFuelAdjustment = (consumption) => {
+            const calculateFuelAdjustment = () => {
                 return { nonST: 0, st: 0, total: 0 };
             };
 
@@ -243,23 +250,43 @@
                 };
             };
             
-            const renderRow = (label, value, isNegative = false, showCurrency = true) => {
+            const renderOldRow = (label, value, isNegative = false) => {
                 const valueColor = isNegative ? 'text-green-600' : 'text-gray-900';
-                const currency = showCurrency ? 'RM' : '';
-                const displayValue = `${isNegative ? '-' : ''}${currency}${Math.abs(value).toFixed(2)}`;
+                const displayValue = `${isNegative ? '-' : ''}RM${Math.abs(value).toFixed(2)}`;
                 return `<div class="flex justify-between items-center py-1"><span class="text-gray-600">${label}</span><span class="font-bold ${valueColor}">${displayValue}</span></div>`;
             };
             
-            const renderNewBreakdownRow = (label, values) => {
-                const isNegative = values.total < 0;
-                const valueColor = isNegative ? 'text-green-600' : 'text-gray-900';
-                const totalValueColor = isNegative ? 'text-green-700' : 'text-black';
+            const renderNewRow = (label, values, isNegative = false) => {
+                let valueColor = isNegative ? 'text-green-600' : 'text-gray-900';
+                let totalValueColor = isNegative ? 'text-green-700' : 'text-black';
+                let bgClass = '';
+                
+                if (label.includes('Fuel Adjustment')) {
+                    bgClass = 'bg-yellow-100';
+                    valueColor = 'text-yellow-800 font-semibold';
+                    totalValueColor = 'text-yellow-800 font-bold';
+                }
+
+                const nonSTVal = label.includes('Fuel Adjustment') ? 'TBA' : (isNegative ? '-' : '') + Math.abs(values.nonST).toFixed(2);
+                const stVal = label.includes('Fuel Adjustment') ? 'TBA' : (isNegative ? '-' : '') + Math.abs(values.st).toFixed(2);
+                const totalVal = label.includes('Fuel Adjustment') ? 'TBA' : (isNegative ? '-' : '') + Math.abs(values.total).toFixed(2);
+                
                 return `
-                    <div class="breakdown-label">${label}</div>
-                    <div class="breakdown-value ${valueColor}">${isNegative ? '-' : ''}${Math.abs(values.nonST).toFixed(2)}</div>
-                    <div class="breakdown-value ${valueColor}">${isNegative ? '-' : ''}${Math.abs(values.st).toFixed(2)}</div>
-                    <div class="breakdown-value font-bold ${totalValueColor}">${isNegative ? '-' : ''}${Math.abs(values.total).toFixed(2)}</div>`;
+                    <div class="breakdown-label rounded-l-md ${bgClass}">${label}</div>
+                    <div class="breakdown-value sm:hidden font-bold ${bgClass} ${totalValueColor} rounded-r-md">${totalVal}</div>
+                    <div class="breakdown-value hidden sm:block ${bgClass} ${valueColor}">${nonSTVal}</div>
+                    <div class="breakdown-value hidden sm:block ${bgClass} ${valueColor}">${stVal}</div>
+                    <div class="breakdown-value hidden sm:block font-bold ${bgClass} ${totalValueColor} rounded-r-md">${totalVal}</div>`;
             }
+
+            const renderSummaryRow = (label, value, isNegative = false) => {
+                 const valueColor = isNegative ? 'text-green-600' : 'text-gray-900';
+                 const displayValue = `RM${Math.abs(value).toFixed(2)}`;
+                 return `
+                    <div class="breakdown-label col-span-1 sm:col-span-3">${label}</div>
+                    <div class="breakdown-value font-bold text-right">${displayValue}</div>
+                 `;
+            };
 
             const renderTotalRow = (total) => {
                 return `<hr class="my-2 border-t-2 border-gray-400 mt-3"><div class="flex justify-between items-center py-1 font-extrabold text-xl"><span class="text-gray-800">Total</span><span class="total-value">RM${total.toFixed(2)}</span></div>`;
@@ -270,35 +297,36 @@
                 const newBill = calculateNewBill(kwh);
 
                 dom.oldBillBreakdownEl.innerHTML = [
-                    renderRow('Total Usage Charge', oldBill.usageCharge),
+                    renderOldRow('Total Usage Charge', oldBill.usageCharge),
                     '<hr class="my-2">',
-                    renderRow('ICPT Rebate/Surcharge', oldBill.icptAmount, oldBill.icptAmount < 0),
-                    renderRow('KWTBB (1.6%)', oldBill.kwtbbCharge),
-                    renderRow('Service Tax (8%)', oldBill.serviceTax),
+                    renderOldRow('ICPT Rebate/Surcharge', oldBill.icptAmount, oldBill.icptAmount < 0),
+                    renderOldRow('KWTBB (1.6%)', oldBill.kwtbbCharge),
+                    renderOldRow('Service Tax (8%)', oldBill.serviceTax),
                     renderTotalRow(oldBill.total)
                 ].filter(Boolean).join('');
 
                 dom.newBillBreakdownEl.innerHTML = `
                     <div class="breakdown-grid">
                         <div class="breakdown-label"></div>
-                        <div class="breakdown-header">Non-ST</div>
-                        <div class="breakdown-header">ST</div>
-                        <div class="breakdown-header">Total</div>
+                        <div class="breakdown-header sm:hidden">Total</div>
+                        <div class="breakdown-header hidden sm:block">Non-ST</div>
+                        <div class="breakdown-header hidden sm:block">ST</div>
+                        <div class="breakdown-header hidden sm:block">Total</div>
                         
-                        ${renderNewBreakdownRow('Energy Charge', newBill.energyCharge)}
-                        ${renderNewBreakdownRow('Capacity Charge', newBill.capacityCharge)}
-                        ${renderNewBreakdownRow('Network Charge', newBill.networkCharge)}
-                        ${renderNewBreakdownRow('Fuel Adjustment (TBA)', newBill.fuelAdjustment)}
-                        ${renderNewBreakdownRow('Retail Charge', {nonST:0, st: newBill.retailCharge, total: newBill.retailCharge})}
+                        ${renderNewRow('Energy Charge', newBill.energyCharge)}
+                        ${renderNewRow('Capacity Charge', newBill.capacityCharge)}
+                        ${renderNewRow('Network Charge', newBill.networkCharge)}
+                        ${renderNewRow('Fuel Adjustment', newBill.fuelAdjustment)}
+                        ${renderNewRow('Retail Charge', {nonST:0, st: newBill.retailCharge, total: newBill.retailCharge})}
                         
                         <div class="breakdown-total"><hr class="my-2"></div>
-                        ${renderNewBreakdownRow('Energy Efficiency Incentive', newBill.incentive)}
+                        ${renderNewRow('Energy Efficiency Incentive', newBill.incentive, true)}
                         <div class="breakdown-total"><hr class="my-2 border-t-2 border-gray-300"></div>
 
-                        ${renderNewBreakdownRow('Current Month Usage Charge', newBill.currentMonthUsage)}
+                        ${renderNewRow('Usage Charge', newBill.currentMonthUsage)}
+                        ${renderSummaryRow('Service Tax (8%)', newBill.serviceTax)}
+                        ${renderSummaryRow('KWTBB (1.6%)', newBill.kwtbbCharge)}
                     </div>
-                    ${renderRow('Service Tax (8%)', newBill.serviceTax, false, false)}
-                    ${renderRow('KWTBB (1.6%)', newBill.kwtbbCharge, false, false)}
                     ${renderTotalRow(newBill.total)}
                 `;
                 
