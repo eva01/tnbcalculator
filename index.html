@@ -28,6 +28,30 @@
             font-weight: 900;
             color: #004AAD;
         }
+        .breakdown-grid {
+            display: grid;
+            grid-template-columns: 3fr 2fr 2fr 2fr;
+            gap: 0.5rem 1rem;
+            align-items: center;
+        }
+        .breakdown-header {
+            font-weight: 600;
+            color: #4A5568;
+            padding-bottom: 0.5rem;
+            text-align: right;
+        }
+        .breakdown-label {
+            text-align: left;
+            color: #4A5568;
+        }
+        .breakdown-value {
+            text-align: right;
+            font-weight: 600;
+            color: #2D3748;
+        }
+        .breakdown-total {
+             grid-column: 1 / -1;
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -36,14 +60,14 @@
 
         <header class="text-center mb-8">
             <h1 class="text-4xl md:text-5xl font-bold text-[#004AAD]">New TNB Bill Calculator</h1>
-            <p class="text-lg text-gray-600 mt-2">The estimation tool for the new July TNB Bill.</p>
+            <p class="text-lg text-gray-600 mt-2">Updated with new TNB rate - Without Fuel Adjustment.</p>
         </header>
 
         <div class="card mb-8">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                 <div class="md:col-span-2">
                     <label for="kwh-input" class="block text-sm font-medium text-gray-700 mb-1">Enter Your Monthly Consumption (kWh)</label>
-                    <input type="number" id="kwh-input" value="2240" class="w-full px-4 py-2 text-lg border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    <input type="number" id="kwh-input" value="317" class="w-full px-4 py-2 text-lg border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                 </div>
                 <div>
                     <button id="calculate-btn" class="w-full bg-[#004AAD] text-white font-bold py-2 px-4 rounded-md hover:bg-[#003B8A] transition duration-300 h-full text-lg">Calculate</button>
@@ -56,13 +80,11 @@
                 <div class="card">
                     <h2 class="text-2xl font-bold text-gray-700 mb-4 text-center">Old Tariff Breakdown</h2>
                     <div id="old-bill-breakdown" class="text-lg space-y-2">
-                        <!-- Old breakdown will be rendered here -->
                     </div>
                 </div>
                 <div class="card border-4 border-[#004AAD]">
                     <h2 class="text-2xl font-bold text-[#004AAD] mb-4 text-center">New Tariff Breakdown</h2>
-                    <div id="new-bill-breakdown" class="text-lg space-y-2">
-                        <!-- New breakdown will be rendered here -->
+                    <div id="new-bill-breakdown" class="text-lg space-y-1">
                     </div>
                 </div>
             </div>
@@ -77,41 +99,43 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
-            const TARIFF_CONFIG = {
-                thresholds: {
-                    highUsage: 1500, retailCharge: 600, fuelAdjustment: 600,
-                    serviceTax: 600, kwtbb: 300,
+            const DOMESTIC = {
+                RETAIL_CHARGE_AMOUNT: 10.0,
+                RETAIL_CHARGE_THRESHOLD: 600,
+                FUEL_ADJUSTMENT_THRESHOLD: 600,
+                ST_THRESHOLD: 600,
+                HIGH_USAGE_THRESHOLD: 1500,
+                KWTBB_THRESHOLD: 300,
+                SERVICE_TAX_RATE: 0.08,
+                KWTBB_RATE: 0.016,
+                RATES: {
+                    tier1: { energy: 0.2703, fuel: 0, capacity: 0.0455, network: 0.1285 },
+                    tier2: { energy: 0.3703, fuel: 0, capacity: 0.0455, network: 0.1285 }
                 },
-                rates: {
-                    new: {
-                        tier1: { energy: 0.27250, fuel: 0.005, capacity: 0.0455, network: 0.1395 },
-                        tier2: { energy: 0.42250, fuel: 0.00500, capacity: 0.04550, network: 0.13950 },
-                        retailAmount: 10.00, kwtbb: 0.016, serviceTax: 0.08,
-                    },
-                    old: {
-                        blocks: [
-                            { limit: 200, rate: 0.218 }, { limit: 100, rate: 0.334 },
-                            { limit: 300, rate: 0.516 }, { limit: 300, rate: 0.546 },
-                            { limit: Infinity, rate: 0.571 }
-                        ],
-                        icptRates: [
-                            { limit: 600, rate: -0.02 }, { limit: 1500, rate: 0 },
-                            { limit: Infinity, rate: 0.10 }
-                        ],
-                        kwtbb: 0.016, serviceTax: 0.08,
-                    },
-                    incentiveTiers: [
-                        { max: 200, rate: -0.26 }, { max: 250, rate: -0.25 },
-                        { max: 300, rate: -0.23 }, { max: 350, rate: -0.21 },
-                        { max: 400, rate: -0.17 }, { max: 450, rate: -0.15 },
-                        { max: 500, rate: -0.13 }, { max: 550, rate: -0.11 },
-                        { max: 600, rate: -0.10 }, { max: 650, rate: -0.07 },
-                        { max: 700, rate: -0.06 }, { max: 750, rate: -0.04 },
-                        { max: 800, rate: -0.03 }, { max: 900, rate: -0.02 },
-                        { max: 1000, rate: -0.01 }, { max: 1500, rate: 0 },
-                        { max: Infinity, rate: 0 }
-                    ]
-                }
+                INCENTIVE_TIERS: [
+                    { max: 200, rate: -0.25 }, { max: 250, rate: -0.245 },
+                    { max: 300, rate: -0.225 }, { max: 350, rate: -0.21 },
+                    { max: 400, rate: -0.17 }, { max: 450, rate: -0.145 },
+                    { max: 500, rate: -0.12 }, { max: 550, rate: -0.105 },
+                    { max: 600, rate: -0.09 }, { max: 650, rate: -0.075 },
+                    { max: 700, rate: -0.055 }, { max: 750, rate: -0.045 },
+                    { max: 800, rate: -0.04 }, { max: 850, rate: -0.025 },
+                    { max: 900, rate: -0.01 }, { max: 1000, rate: -0.005 },
+                    { max: Infinity, rate: 0 }
+                ]
+            };
+
+            const OLD_TARIFF_CONFIG = {
+                 blocks: [
+                    { limit: 200, rate: 0.218 }, { limit: 100, rate: 0.334 },
+                    { limit: 300, rate: 0.516 }, { limit: 300, rate: 0.546 },
+                    { limit: Infinity, rate: 0.571 }
+                ],
+                icptRates: [
+                    { limit: 600, rate: -0.02 }, { limit: 1500, rate: 0 },
+                    { limit: Infinity, rate: 0.10 }
+                ],
+                kwtbb: 0.016, serviceTax: 0.08,
             };
 
             const dom = {
@@ -123,10 +147,8 @@
             };
 
             const calculateOldBill = (kwh) => {
-                const r = TARIFF_CONFIG.rates.old;
-                let usageCharge = 0;
-                let chargeBelow600 = 0;
-                let remainingKwh = kwh;
+                const r = OLD_TARIFF_CONFIG;
+                let usageCharge = 0, chargeBelow600 = 0, remainingKwh = kwh;
                 
                 for (const block of r.blocks) {
                     if (remainingKwh <= 0) break;
@@ -141,14 +163,12 @@
                 let icptRate = r.icptRates.find(tier => kwh <= tier.limit)?.rate ?? r.icptRates[r.icptRates.length -1].rate;
                 const icptAmount = kwh * icptRate;
                 
-                // Corrected KWTBB calculation: based on usage charge BEFORE ICPT.
                 const kwtbbCharge = usageCharge > 0 ? usageCharge * r.kwtbb : 0;
                 
                 let serviceTax = 0;
-                if (kwh > TARIFF_CONFIG.thresholds.serviceTax) {
+                if (kwh > DOMESTIC.ST_THRESHOLD) {
                     const chargeAbove600 = usageCharge - chargeBelow600;
-                    // Corrected SST base: Includes the ICPT surcharge for the taxable portion.
-                    const icptForTaxablePortion = (kwh - TARIFF_CONFIG.thresholds.serviceTax) * icptRate;
+                    const icptForTaxablePortion = (kwh - DOMESTIC.ST_THRESHOLD) * icptRate;
                     const taxableAmount = chargeAbove600 + icptForTaxablePortion;
                     serviceTax = taxableAmount > 0 ? taxableAmount * r.serviceTax : 0;
                 }
@@ -157,43 +177,89 @@
                 return { total, usageCharge, icptAmount, kwtbbCharge, serviceTax };
             };
             
-            const calculateNewBill = (kwh) => {
-                const t = TARIFF_CONFIG.thresholds;
-                const r = TARIFF_CONFIG.rates.new;
-                const chargeRate = kwh > t.highUsage ? r.tier2 : r.tier1;
-                
-                const energyCharge = kwh * chargeRate.energy;
-                const capacityCharge = kwh * chargeRate.capacity;
-                const networkCharge = kwh * chargeRate.network;
-                const fuelAdjustment = kwh > t.fuelAdjustment ? kwh * chargeRate.fuel : 0;
-                const retailCharge = kwh > t.retailCharge ? r.retailAmount : 0;
-                
-                const incentiveTier = TARIFF_CONFIG.rates.incentiveTiers.find(tier => kwh <= tier.max) || { rate: 0 };
-                const incentive = kwh * incentiveTier.rate;
+            const calculateTieredCharge = (consumption, chargeType) => {
+                const isAboveSTThreshold = consumption > DOMESTIC.ST_THRESHOLD;
+                const isHighUsage = consumption > DOMESTIC.HIGH_USAGE_THRESHOLD;
+                const nonSTConsumption = isAboveSTThreshold ? DOMESTIC.ST_THRESHOLD : consumption;
+                const stConsumption = isAboveSTThreshold ? consumption - DOMESTIC.ST_THRESHOLD : 0;
+                const rate = isHighUsage ? DOMESTIC.RATES.tier2[chargeType] : DOMESTIC.RATES.tier1[chargeType];
+                const nonSTCharge = nonSTConsumption * rate;
+                const stCharge = stConsumption * rate;
+                return { nonST: nonSTCharge, st: stCharge, total: nonSTCharge + stCharge };
+            };
 
-                const currentMonthUsageCharge = energyCharge + capacityCharge + networkCharge + fuelAdjustment + retailCharge + incentive;
-                let serviceTax = 0;
-                if (kwh > t.serviceTax) {
-                    const stRatio = (kwh - t.serviceTax) / kwh;
-                    const stApplicableAmount = (energyCharge + capacityCharge + networkCharge + fuelAdjustment + incentive) * stRatio + retailCharge;
-                    serviceTax = stApplicableAmount * r.serviceTax;
+            const calculateFuelAdjustment = (consumption) => {
+                return { nonST: 0, st: 0, total: 0 };
+            };
+
+            const calculateEnergyEfficiencyIncentive = (consumption) => {
+                if (consumption < 0) return 0;
+                for (const tier of DOMESTIC.INCENTIVE_TIERS) {
+                    if (consumption <= tier.max) {
+                        return consumption * tier.rate;
+                    }
                 }
-                
-                const kwtbbBase = energyCharge + capacityCharge + networkCharge + incentive;
-                const kwtbbCharge = kwh > t.kwtbb && kwtbbBase > 0 ? kwtbbBase * r.kwtbb : 0;
-                const total = currentMonthUsageCharge + serviceTax + kwtbbCharge;
+                return 0;
+            };
 
+            const calculateNewBill = (consumption) => {
+                const isAboveSTThreshold = consumption > DOMESTIC.ST_THRESHOLD;
+                const nonSTConsumption = isAboveSTThreshold ? DOMESTIC.ST_THRESHOLD : consumption;
+                const stConsumption = isAboveSTThreshold ? consumption - DOMESTIC.ST_THRESHOLD : 0;
+
+                const energyCharges = calculateTieredCharge(consumption, 'energy');
+                const fuelAdjustmentCharges = calculateFuelAdjustment(consumption);
+                const capacityCharges = calculateTieredCharge(consumption, 'capacity');
+                const networkCharges = calculateTieredCharge(consumption, 'network');
+                const retailCharge = consumption > DOMESTIC.RETAIL_CHARGE_THRESHOLD ? DOMESTIC.RETAIL_CHARGE_AMOUNT : 0;
+                const totalIncentive = calculateEnergyEfficiencyIncentive(consumption);
+                
+                let incentiveNonST = 0;
+                let incentiveST = 0;
+                if (isAboveSTThreshold) {
+                    const nonSTRatio = nonSTConsumption / consumption;
+                    const stRatio = stConsumption / consumption;
+                    incentiveNonST = totalIncentive * nonSTRatio;
+                    incentiveST = totalIncentive * stRatio;
+                } else {
+                    incentiveNonST = totalIncentive;
+                }
+
+                const usageChargeNonST = energyCharges.nonST + fuelAdjustmentCharges.nonST + capacityCharges.nonST + networkCharges.nonST + incentiveNonST;
+                const usageChargeST = energyCharges.st + fuelAdjustmentCharges.st + capacityCharges.st + networkCharges.st + retailCharge + incentiveST;
+                const totalUsageCharge = usageChargeNonST + usageChargeST;
+
+                const serviceTax = isAboveSTThreshold ? usageChargeST * DOMESTIC.SERVICE_TAX_RATE : 0;
+                const kwtbbBase = energyCharges.total + capacityCharges.total + networkCharges.total + totalIncentive;
+                const kwtbbCharge = consumption > DOMESTIC.KWTBB_THRESHOLD && kwtbbBase > 0 ? kwtbbBase * DOMESTIC.KWTBB_RATE : 0;
+
+                const total = totalUsageCharge + serviceTax + kwtbbCharge;
+                
                 return {
-                    total, energyCharge, capacityCharge, networkCharge, retailCharge,
-                    fuelAdjustment, incentive, kwtbbCharge, serviceTax, currentMonthUsage: currentMonthUsageCharge
+                    total,
+                    energyCharge: energyCharges, capacityCharge: capacityCharges, networkCharge: networkCharges,
+                    fuelAdjustment: fuelAdjustmentCharges, retailCharge, incentive: {total: totalIncentive, nonST: incentiveNonST, st: incentiveST},
+                    kwtbbCharge, serviceTax, currentMonthUsage: {total: totalUsageCharge, nonST: usageChargeNonST, st: usageChargeST}
                 };
             };
             
-            const renderRow = (label, value, isNegative = false) => {
+            const renderRow = (label, value, isNegative = false, showCurrency = true) => {
                 const valueColor = isNegative ? 'text-green-600' : 'text-gray-900';
-                const displayValue = `${isNegative ? '-' : ''}RM${Math.abs(value).toFixed(2)}`;
+                const currency = showCurrency ? 'RM' : '';
+                const displayValue = `${isNegative ? '-' : ''}${currency}${Math.abs(value).toFixed(2)}`;
                 return `<div class="flex justify-between items-center py-1"><span class="text-gray-600">${label}</span><span class="font-bold ${valueColor}">${displayValue}</span></div>`;
             };
+            
+            const renderNewBreakdownRow = (label, values) => {
+                const isNegative = values.total < 0;
+                const valueColor = isNegative ? 'text-green-600' : 'text-gray-900';
+                const totalValueColor = isNegative ? 'text-green-700' : 'text-black';
+                return `
+                    <div class="breakdown-label">${label}</div>
+                    <div class="breakdown-value ${valueColor}">${isNegative ? '-' : ''}${Math.abs(values.nonST).toFixed(2)}</div>
+                    <div class="breakdown-value ${valueColor}">${isNegative ? '-' : ''}${Math.abs(values.st).toFixed(2)}</div>
+                    <div class="breakdown-value font-bold ${totalValueColor}">${isNegative ? '-' : ''}${Math.abs(values.total).toFixed(2)}</div>`;
+            }
 
             const renderTotalRow = (total) => {
                 return `<hr class="my-2 border-t-2 border-gray-400 mt-3"><div class="flex justify-between items-center py-1 font-extrabold text-xl"><span class="text-gray-800">Total</span><span class="total-value">RM${total.toFixed(2)}</span></div>`;
@@ -202,7 +268,7 @@
             const updateUI = (kwh) => {
                 const oldBill = calculateOldBill(kwh);
                 const newBill = calculateNewBill(kwh);
-                
+
                 dom.oldBillBreakdownEl.innerHTML = [
                     renderRow('Total Usage Charge', oldBill.usageCharge),
                     '<hr class="my-2">',
@@ -212,20 +278,29 @@
                     renderTotalRow(oldBill.total)
                 ].filter(Boolean).join('');
 
-                dom.newBillBreakdownEl.innerHTML = [
-                    renderRow('Energy Charge', newBill.energyCharge),
-                    renderRow('Capacity Charge', newBill.capacityCharge),
-                    renderRow('Network Charge', newBill.networkCharge),
-                    renderRow('Fuel Adjustment', newBill.fuelAdjustment),
-                    renderRow('Retail Charge', newBill.retailCharge),
-                    '<hr class="my-2">',
-                    renderRow('Energy Efficiency Incentive', newBill.incentive, true),
-                    '<hr class="my-2 border-t-2 border-gray-300">',
-                    renderRow('Current Month Usage Charge', newBill.currentMonthUsage),
-                    renderRow('Service Tax (8%)', newBill.serviceTax),
-                    renderRow('KWTBB (1.6%)', newBill.kwtbbCharge),
-                    renderTotalRow(newBill.total)
-                ].filter(Boolean).join('');
+                dom.newBillBreakdownEl.innerHTML = `
+                    <div class="breakdown-grid">
+                        <div class="breakdown-label"></div>
+                        <div class="breakdown-header">Non-ST</div>
+                        <div class="breakdown-header">ST</div>
+                        <div class="breakdown-header">Total</div>
+                        
+                        ${renderNewBreakdownRow('Energy Charge', newBill.energyCharge)}
+                        ${renderNewBreakdownRow('Capacity Charge', newBill.capacityCharge)}
+                        ${renderNewBreakdownRow('Network Charge', newBill.networkCharge)}
+                        ${renderNewBreakdownRow('Fuel Adjustment (TBA)', newBill.fuelAdjustment)}
+                        ${renderNewBreakdownRow('Retail Charge', {nonST:0, st: newBill.retailCharge, total: newBill.retailCharge})}
+                        
+                        <div class="breakdown-total"><hr class="my-2"></div>
+                        ${renderNewBreakdownRow('Energy Efficiency Incentive', newBill.incentive)}
+                        <div class="breakdown-total"><hr class="my-2 border-t-2 border-gray-300"></div>
+
+                        ${renderNewBreakdownRow('Current Month Usage Charge', newBill.currentMonthUsage)}
+                    </div>
+                    ${renderRow('Service Tax (8%)', newBill.serviceTax, false, false)}
+                    ${renderRow('KWTBB (1.6%)', newBill.kwtbbCharge, false, false)}
+                    ${renderTotalRow(newBill.total)}
+                `;
                 
                 dom.resultsContainer.classList.remove('opacity-0');
             };
